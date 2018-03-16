@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-HADOOP_SRC_HOME=$HOME/Workspace/hadoop
+HADOOP_SRC_HOME=$HOME/dev/hadoop-upstream
 SPARK_SRC_HOME=$HOME/Workspace/spark
+
+# these variables required by hadoop setup.
+# if not provided, the startup will fail
 
 let N=3
 
@@ -14,7 +17,7 @@ function usage() {
     echo "hadoop       Make running mode to hadoop"
     echo "spark        Make running mode to spark"
     echo "--rebuild    Rebuild hadoop if in hadoop mode; else reuild spark"
-    echo "--nodes      Specify the number of total nodes"
+    echo "--nodes      Specify the number of total nodes (default is 3)"
 }
 
 # @Return the hadoop distribution package for deployment
@@ -34,7 +37,7 @@ function build_hadoop() {
         mkdir tmp
 
         # Prepare hadoop packages and configuration files
-        mvn -f $HADOOP_SRC_HOME package -DskipTests -Dtar -Pdist -q || exit 1
+        mvn -f $HADOOP_SRC_HOME package -DskipTests -Dtar -Pdist || exit 1
         HADOOP_TARGET_SNAPSHOT=$(hadoop_target)
         cp -r $HADOOP_TARGET_SNAPSHOT tmp/hadoop
         cp hadoopconf/* tmp/hadoop/etc/hadoop/
@@ -46,6 +49,12 @@ cat > tmp/Dockerfile << EOF
         ENV HADOOP_HOME $HADOOP_HOME
         ADD hadoop $HADOOP_HOME
         ENV PATH "\$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin"
+
+        ENV HDFS_NAMENODE_USER="root"
+        ENV HDFS_DATANODE_USER="root"
+        ENV HDFS_SECONDARYNAMENODE_USER="root"
+        ENV YARN_RESOURCEMANAGER_USER="root"
+        ENV YARN_NODEMANAGER_USER="root"
 
         RUN $HADOOP_HOME/bin/hdfs namenode -format
 EOF
