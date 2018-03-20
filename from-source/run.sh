@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+# TODO after you get into the master node (docker) you can call to following to list examples to run
+# hadoop jar ./hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.0.1.jar
 
-HADOOP_SRC_HOME=$HOME/dev/hadoop-upstream
+
+# TODO change this to your hadoop sources dir what you want to build
+HADOOP_SRC_HOME=$HOME/dev/hadoop-upstream-vote
 SPARK_SRC_HOME=$HOME/Workspace/spark
-
-# these variables required by hadoop setup.
-# if not provided, the startup will fail
 
 let N=3
 
@@ -22,7 +23,10 @@ function usage() {
 
 # @Return the hadoop distribution package for deployment
 function hadoop_target() {
-    echo $(find $HADOOP_SRC_HOME/hadoop-dist/target/ -type d -name 'hadoop-*-SNAPSHOT')
+    # TODO if it is a release use the second one (e.g voting)
+    # TODO if this is a release use the first one (for snapshots)
+    #echo $(find $HADOOP_SRC_HOME/hadoop-dist/target/ -type d -name 'hadoop-*-SNAPSHOT')
+    echo $(find $HADOOP_SRC_HOME/hadoop-dist/target/ -type d -iname 'hadoop-[0-9]*')
 }
 
 function build_hadoop() {
@@ -36,8 +40,11 @@ function build_hadoop() {
 
         mkdir tmp
 
+        # to avoid build error:
+        # export HADOOP_OPTIONAL_TOOLS = hadoop-aws
+
         # Prepare hadoop packages and configuration files
-        mvn -f $HADOOP_SRC_HOME package -DskipTests -Dtar -Pdist || exit 1
+        mvn -f $HADOOP_SRC_HOME package -DskipTests -Dtar -Pdist -q || exit 1
         HADOOP_TARGET_SNAPSHOT=$(hadoop_target)
         cp -r $HADOOP_TARGET_SNAPSHOT tmp/hadoop
         cp hadoopconf/* tmp/hadoop/etc/hadoop/
