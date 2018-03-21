@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
-# TODO after you get into the master node (docker) you can call to following to list examples to run
-# hadoop jar ./hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.0.1.jar
 
-
-# TODO change this to your hadoop sources dir what you want to build
-HADOOP_SRC_HOME=$HOME/dev/hadoop-upstream-vote
-SPARK_SRC_HOME=$HOME/Workspace/spark
+SRC_HOME=$HOME/dev/hadoop-upstream-vote
 
 let N=3
 
@@ -19,14 +14,23 @@ function usage() {
     echo "spark        Make running mode to spark"
     echo "--rebuild    Rebuild hadoop if in hadoop mode; else reuild spark"
     echo "--nodes      Specify the number of total nodes (default is 3)"
+    echo "--src-path   Specify the path where the source files can be found"
 }
 
 # @Return the hadoop distribution package for deployment
 function hadoop_target() {
-    # TODO if it is a release use the second one (e.g voting)
-    # TODO if this is a release use the first one (for snapshots)
-    #echo $(find $HADOOP_SRC_HOME/hadoop-dist/target/ -type d -name 'hadoop-*-SNAPSHOT')
-    echo $(find $HADOOP_SRC_HOME/hadoop-dist/target/ -type d -iname 'hadoop-[0-9]*')
+    HADOOP_DIST_TARGET_DIR="$(find $SRC_HOME/hadoop-dist/target/ -type d -name 'hadoop-*-SNAPSHOT')"
+    if [[ "$HADOOP_DIST_TARGET_DIR" == "" ]]; then
+        HADOOP_DIST_TARGET_DIR="$(find $SRC_HOME/hadoop-dist/target/ -type d -iname 'hadoop-[0-9]*')"
+    fi
+
+    # Error handling
+    if [[ "$HADOOP_DIST_TARGET_DIR" == "" ]]; then
+        echo "function hadoop_target(): The hadoop distribution build cannot be found in the target directory."
+        exit 2
+    fi
+
+    echo $HADOOP_DIST_TARGET_DIR
 }
 
 function build_hadoop() {
@@ -44,7 +48,7 @@ function build_hadoop() {
         # export HADOOP_OPTIONAL_TOOLS = hadoop-aws
 
         # Prepare hadoop packages and configuration files
-        mvn -f $HADOOP_SRC_HOME package -DskipTests -Dtar -Pdist -q || exit 1
+        mvn -f $SRC_HOME package -DskipTests -Dtar -Pdist -q || exit 1
         HADOOP_TARGET_SNAPSHOT=$(hadoop_target)
         cp -r $HADOOP_TARGET_SNAPSHOT tmp/hadoop
         cp hadoopconf/* tmp/hadoop/etc/hadoop/
@@ -84,8 +88,8 @@ function build_spark() {
 
         mkdir tmp
 
-        $SPARK_SRC_HOME/dev/make-distribution.sh --name myspark --tgz -Phive -Phive-thriftserver -Pyarn 1> /dev/null || exit 1
-        tar xzf $SPARK_SRC_HOME/*.tgz -C tmp/
+        $SRC_HOME/dev/make-distribution.sh --name myspark --tgz -Phive -Phive-thriftserver -Pyarn 1> /dev/null || exit 1
+        tar xzf $SRC_HOME/*.tgz -C tmp/
         mv tmp/*myspark tmp/spark
 
         # Generate docker file for hadoop
@@ -128,6 +132,9 @@ function parse_arguments() {
             --nodes)
                 N=$VALUE
                 ;;
+            --src-path)
+                SRC_HOME=$VALUE
+                ;;
             *)
                 echo "ERROR: unknown parameter \"$PARAM\""
                 usage
@@ -139,8 +146,13 @@ function parse_arguments() {
 
     if [[ "$MODE" == "" ]]; then
         echo "Must specify either hadoop or spark mode"
+        usage
         exit 2
     fi
+
+    echo "====================================================================="
+    echo "===  Source directory: $SRC_HOME"
+    echo "====================================================================="
 }
 
 parse_arguments $@
