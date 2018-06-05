@@ -66,8 +66,6 @@ cat > tmp/Dockerfile << EOF
         ENV HDFS_SECONDARYNAMENODE_USER="root"
         ENV YARN_RESOURCEMANAGER_USER="root"
         ENV YARN_NODEMANAGER_USER="root"
-
-        RUN $HADOOP_HOME/bin/hdfs namenode -format
 EOF
         echo "Building image for hadoop"
         docker rmi -f caochong-hadoop
@@ -182,6 +180,7 @@ docker cp hosts $master_id:$HADOOP_HOME/etc/hadoop/workers
 docker cp hosts $master_id:$HADOOP_HOME/etc/hadoop/slaves
 
 # Start hdfs and yarn services
+docker exec -it $master_id $HADOOP_HOME/bin/hdfs namenode -format
 docker exec -it $master_id $HADOOP_HOME/sbin/start-dfs.sh
 docker exec -it $master_id $HADOOP_HOME/sbin/start-yarn.sh
 
